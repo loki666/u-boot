@@ -1182,32 +1182,34 @@ unsigned long sunxi_dram_init(void)
 {
 	unsigned long size;
 
-	/* Keeping for now as documentation of where different parameters come from */
-	struct dram_config config = {
-		.cols = (para.para1 & 0xF),
-		.rows = (para.para1 >> 4) & 0xFF,
-		.banks = (para.para1 >> 12) & 0x3,
-		.bankgrps = (para.para1 >> 14) & 0x3,
-		.ranks = ((para.tpr13 >> 16) & 3),
-		.bus_full_width = !((para.para2 >> 3) & 1),
-	};
-
-	/* Writing to undocumented SYS_CFG area, according to user manual. */
-	setbits_le32(0x03000160, BIT(8));
-	clrbits_le32(0x03000168, 0x3f);
-
-	/* TODO: Figure out how to catch bank group errors. */
-	// auto_detect_ranks(&para, &config);
-	// mctl_auto_detect_dram_size(&para, &config);
-
-	if (!mctl_core_init(&para, &config))
-		return 0;
-
-	debug("cols = %d, rows = %d, banks = %d, bankgrps = %d, ranks = %d, full_width = %d\n",
-	      config.cols, config.rows, config.banks, config.bankgrps,
-	      config.ranks, config.bus_full_width);
-
-	size = calculate_dram_size(&config);
+	do {
+		/* Keeping for now as documentation of where different parameters come from */
+		struct dram_config config = {
+			.cols = (para.para1 & 0xF),
+			.rows = (para.para1 >> 4) & 0xFF,
+			.banks = (para.para1 >> 12) & 0x3,
+			.bankgrps = (para.para1 >> 14) & 0x3,
+			.ranks = ((para.tpr13 >> 16) & 3),
+			.bus_full_width = !((para.para2 >> 3) & 1),
+		};
+	
+		/* Writing to undocumented SYS_CFG area, according to user manual. */
+		setbits_le32(0x03000160, BIT(8));
+		clrbits_le32(0x03000168, 0x3f);
+	
+		/* TODO: Figure out how to catch bank group errors. */
+		// auto_detect_ranks(&para, &config);
+		// mctl_auto_detect_dram_size(&para, &config);
+	
+		if (!mctl_core_init(&para, &config))
+			return 0;
+	
+		debug("cols = %d, rows = %d, banks = %d, bankgrps = %d, ranks = %d, full_width = %d\n",
+		      config.cols, config.rows, config.banks, config.bankgrps,
+		      config.ranks, config.bus_full_width);
+	
+		size = calculate_dram_size(&config);
+	} while (size != 2 * 1024 * 1024 * 1024);
 
 	/* TODO: This is just a sanity check for now. */
 	if (libdram_dramc_simple_wr_test(size, 4096))
